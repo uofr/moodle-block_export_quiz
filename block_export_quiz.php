@@ -78,7 +78,23 @@ class block_export_quiz extends block_base{
                  */
                 if(!$quiz->uservisible)
                     continue;
-
+                // Check if questions were added to the quiz (not only random questions)
+                $sql = "SELECT q.id AS questionid, q.questiontext, q.name AS questionname
+                    FROM mdl_quiz_slots slot
+                    LEFT JOIN mdl_question_references qr ON qr.component = 'mod_quiz'
+                    AND qr.questionarea = 'slot' AND qr.itemid = slot.id
+                    LEFT JOIN mdl_question_bank_entries qbe ON qbe.id = qr.questionbankentryid
+                    LEFT JOIN mdl_question_versions qv ON qv.questionbankentryid = qbe.id
+                    LEFT JOIN mdl_question q ON q.id = qv.questionid
+                    WHERE (qv.version = (SELECT MAX(v.version)
+                                                    FROM mdl_question_versions v
+                                                        JOIN mdl_question_bank_entries be ON be.id = v.questionbankentryid
+                                                    WHERE be.id = qbe.id))
+                    AND slot.quizid = " . $quizid;
+                $questions  = $DB->get_records_sql($sql)
+                if(count($questions)==0)
+                    continue;
+                    
                 $pageurl = new moodle_url('/blocks/export_quiz/export.php',
                     array('courseid' => $COURSE->id,
                         'id' => $quiz->instance,
