@@ -78,7 +78,8 @@ class block_export_quiz extends block_base{
                  */
                 if(!$quiz->uservisible)
                     continue;
-                // Check if questions were added to the quiz (not only random questions)
+
+                // Check if some questions were added to the quiz (i.e. quiz must not contain only random questions from a category)
                 $sql = "SELECT q.id AS questionid, q.questiontext, q.name AS questionname
                     FROM mdl_quiz_slots slot
                     LEFT JOIN mdl_question_references qr ON qr.component = 'mod_quiz'
