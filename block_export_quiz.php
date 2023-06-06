@@ -91,10 +91,10 @@ class block_export_quiz extends block_base{
                                                         JOIN mdl_question_bank_entries be ON be.id = v.questionbankentryid
                                                     WHERE be.id = qbe.id))
                     AND slot.quizid = " . $quizid;
-                $questions  = $DB->get_records_sql($sql)
+                $questions  = $DB->get_records_sql($sql);
                 if(count($questions)==0)
                     continue;
-                    
+
                 $pageurl = new moodle_url('/blocks/export_quiz/export.php',
                     array('courseid' => $COURSE->id,
                         'id' => $quiz->instance,
