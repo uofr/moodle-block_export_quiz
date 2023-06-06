@@ -90,7 +90,7 @@ class block_export_quiz extends block_base{
                                                     FROM mdl_question_versions v
                                                         JOIN mdl_question_bank_entries be ON be.id = v.questionbankentryid
                                                     WHERE be.id = qbe.id))
-                    AND slot.quizid = " . $quizid;
+                    AND slot.quizid = " . $quiz->instance;
                 $questions  = $DB->get_records_sql($sql);
                 if(count($questions)==0)
                     continue;
