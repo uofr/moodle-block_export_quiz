@@ -40,23 +40,72 @@ if ($courseid) {
 }
 
 require_sesskey();
-
+$modinfo = get_fast_modinfo($courseid);
+$cm = $modinfo->instances["quiz"][$quizid];
+$context = context_module::instance($cm->id);
+$quizcontextid = $context->id;
 // Load the necessary data.
 $contexts = new question_edit_contexts($thiscontext);
+$params = [
+    'quizcontextid' => $quizcontextid,
+    'quizcontextid2' => $quizcontextid,
+    'quizcontextid3' => $quizcontextid,
+    'quizid' => $quizid,
+    'quizid2' => $quizid,
+];
+
+$questions=$DB->get_records_sql("
+            SELECT slot.slot,
+                slot.id AS slotid,
+                slot.page,
+                slot.maxmark,
+                slot.requireprevious,
+                qsr.filtercondition,
+                qv.status,
+                qv.id AS versionid,
+                qv.version,
+                qr.version AS requestedversion,
+                qv.questionbankentryid,
+                q.id AS questionid,
+                q.*,
+                qc.id AS category,
+                COALESCE(qc.contextid, qsr.questionscontextid) AS contextid
+            FROM {quiz_slots} slot
+            -- case where a particular question has been added to the quiz.
+            LEFT JOIN {question_references} qr ON qr.usingcontextid = :quizcontextid AND qr.component = 'mod_quiz'
+                                    AND qr.questionarea = 'slot' AND qr.itemid = slot.id
+            LEFT JOIN {question_bank_entries} qbe ON qbe.id = qr.questionbankentryid
+            -- This way of getting the latest version for each slot is a bit more complicated
+            -- than we would like, but the simpler SQL did not work in Oracle 11.2.
+            -- (It did work fine in Oracle 19.x, so once we have updated our min supported
+            -- version we could consider digging the old code out of git history from
+            -- just before the commit that added this comment.
+            -- For relevant question_bank_entries, this gets the latest non-draft slot number.
+            LEFT JOIN (
+            SELECT lv.questionbankentryid, MAX(lv.version) AS version
+                FROM {quiz_slots} lslot
+                JOIN {question_references} lqr ON lqr.usingcontextid = :quizcontextid2 AND lqr.component = 'mod_quiz'
+                                    AND lqr.questionarea = 'slot' AND lqr.itemid = lslot.id
+                JOIN {question_versions} lv ON lv.questionbankentryid = lqr.questionbankentryid
+                WHERE lslot.quizid = :quizid2
+                AND lqr.version IS NULL
+                AND lv.status ='ready'
+            GROUP BY lv.questionbankentryid
+            ) latestversions ON latestversions.questionbankentryid = qr.questionbankentryid
+            LEFT JOIN {question_versions} qv ON qv.questionbankentryid = qbe.id
+                                -- Either specified version, or latest ready version.
+                                AND qv.version = COALESCE(qr.version, latestversions.version)
+            LEFT JOIN {question_categories} qc ON qc.id = qbe.questioncategoryid
+            LEFT JOIN {question} q ON q.id = qv.questionid
+            -- Case where a random question has been added.
+            LEFT JOIN {question_set_references} qsr ON qsr.usingcontextid = :quizcontextid3 AND qsr.component = 'mod_quiz'
+                                    AND qsr.questionarea = 'slot' AND qsr.itemid = slot.id
+            WHERE slot.quizid = :quizid
+            ORDER BY slot.slot
+            ", $params); 
+            
 $questiondata = array();
-$sql = "SELECT q.id AS questionid, q.questiontext, q.name AS questionname
-    FROM mdl_quiz_slots slot
-    LEFT JOIN mdl_question_references qr ON qr.component = 'mod_quiz'
-    AND qr.questionarea = 'slot' AND qr.itemid = slot.id
-    LEFT JOIN mdl_question_bank_entries qbe ON qbe.id = qr.questionbankentryid
-    LEFT JOIN mdl_question_versions qv ON qv.questionbankentryid = qbe.id
-    LEFT JOIN mdl_question q ON q.id = qv.questionid
-    WHERE (qv.version = (SELECT MAX(v.version)
-                                    FROM mdl_question_versions v
-                                        JOIN mdl_question_bank_entries be ON be.id = v.questionbankentryid
-                                    WHERE be.id = qbe.id))
-    AND slot.quizid = " . $quizid;
-if ($questions  = $DB->get_records_sql($sql)) {
+if ($questions) {
     foreach ($questions as $question) {
         array_push($questiondata, question_bank::load_question_data($question->questionid));
     }
@@ -66,8 +115,8 @@ if ($questions  = $DB->get_records_sql($sql)) {
  * Check if the Quiz is visible to the user only then display it :
  * Teacher can choose to hide the quiz from the students in that case it should not be visible to students
  */
-$modinfo = get_fast_modinfo($courseid);
-$cm = $modinfo->instances["quiz"][$quizid];
+
+
 if(!$cm->uservisible)
     print_error('noaccess', 'block_export_quiz');
 
