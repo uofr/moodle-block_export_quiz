@@ -1,5 +1,5 @@
 # Export-Quiz
-This is a fork of [this repo](https://github.com/CustomAP/moodle-block_export_quiz) and adapted to the moodle 4.0. I.e. **this plugin requires at least moodle version 4.0.**
+This is a fork of [this repo](https://github.com/CustomAP/moodle-block_export_quiz) and adapted to moodle 4.0. I.e. **this plugin requires at least moodle version 4.0.**
 
 
 A plugin for exporting quiz in moodle.
