@@ -104,58 +104,71 @@ $questions=$DB->get_records_sql("
             ORDER BY slot.slot
             ", $params); 
             
-$questiondata = array();
-if ($questions) {
-    foreach ($questions as $question) {
-        array_push($questiondata, question_bank::load_question_data($question->questionid));
-    }
-}
+            $questiondata = array();
 
-/**
- * Check if the Quiz is visible to the user only then display it :
- * Teacher can choose to hide the quiz from the students in that case it should not be visible to students
- */
-
-
-if(!$cm->uservisible)
-    print_error('noaccess', 'block_export_quiz');
-
-// Initialise $PAGE.
-$nexturl = new moodle_url('/question/type/stack/questiontestrun.php', $urlparams);
-$PAGE->set_url('/blocks/export_quiz/export.php', $urlparams);
-$PAGE->set_heading(get_string('pluginname','block_export_quiz'));
-$PAGE->set_pagelayout('admin');
-
-// Check if the question format is readable, if yes import it : This way support is added for any third-party question format installed.
-if (!is_readable($CFG->dirroot . "/question/format/{$format}/format.php")) {
-    print_error('unknowformat', '', '', $format);
-} else {
-    require_once($CFG->dirroot . "/question/format/{$format}/format.php");
-}
-
-// Set up the export format.
-$classname = 'qformat_' . $format;
-$qformat = new $classname();
-$qformat->setContexts($contexts->having_one_edit_tab_cap('export'));
-$qformat->setCourse($COURSE);
-$qformat->setCattofile(false);
-$qformat->setContexttofile(false);
-$qformat->setQuestions($questiondata);
-
-// Get quiz name to assign it to file name used for exporting.
-$filename = $cm->name. $qformat->export_file_extension();
-
-// Pre-processing the export.
-if (!$qformat->exportpreprocess()) {
-    send_file_not_found();
-}
-
-/* Actual export process to get the converted string
- * Check capabilites set to false since already checks done for quiz availability
- * This also adds the functionality of exporting the quiz for the students
- */
-if (!$content = $qformat->exportprocess(false)) {
-    send_file_not_found();
-}
-
-send_file($content, $filename, 0, 0, true, true, $qformat->mime_type());
+            if ($questions) {
+                foreach ($questions as $question) {
+                    try {
+                        // Attempt to load question data.
+                        $data = question_bank::load_question_data($question->questionid);
+            
+                        // Check if data is valid before adding it.
+                        if ($data) {
+                            array_push($questiondata, $data);
+                        } else {
+                            // Log or handle cases where data is null/empty.
+                            debugging("Failed to load question data for question ID: {$question->questionid}");
+                        }
+                    } catch (Exception $e) {
+                        // Catch any exceptions thrown during load_question_data.
+                        debugging("Error loading question data for question ID: {$question->questionid}. Error: " . $e->getMessage());
+                    }
+                }
+            } else {
+                // Handle the case where no questions are found.
+                throw new moodle_exception('noquestionsfound', 'block_export_quiz', '', null, 
+                    'No questions were found in the selected quiz for export.');
+            }
+            
+            // Check if question data is empty after processing.
+            if (empty($questiondata)) {
+                throw new moodle_exception('noquestionsdata', 'block_export_quiz', '', null, 
+                    'No valid question data was available for export.');
+            }
+            
+            // Continue with the export process.
+            if (!is_readable($CFG->dirroot . "/question/format/{$format}/format.php")) {
+                throw new moodle_exception('unknowformat', '', '', $format);
+            } else {
+                require_once($CFG->dirroot . "/question/format/{$format}/format.php");
+            }
+            
+            $classname = 'qformat_' . $format;
+            $qformat = new $classname();
+            $qformat->setContexts($contexts->having_one_edit_tab_cap('export'));
+            $qformat->setCourse($COURSE);
+            $qformat->setCattofile(false);
+            $qformat->setContexttofile(false);
+            $qformat->setQuestions($questiondata);
+            
+            $filename = $cm->name . $qformat->export_file_extension();
+            
+            if (!$qformat->exportpreprocess()) {
+                send_file_not_found();
+            }
+            
+            try {
+                $content = $qformat->exportprocess(false);
+                if (!$content) {
+                    debugging('Export process failed: No file content generated.', DEBUG_DEVELOPER);
+                    throw new moodle_exception('filenotfound', 'error', '', null, 
+                        'The file could not be found or was not generated during the export process.');
+                }
+            } catch (Exception $e) {
+                debugging('Error in export process: ' . $e->getMessage(), DEBUG_DEVELOPER);
+                throw new moodle_exception('filenotfound', 'error', '', null, 
+                    'No export file was found. Please ensure the export process completed successfully.');
+            }
+            
+            send_file($content, $filename, 0, 0, true, true, $qformat->mime_type());
+            
