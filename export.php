@@ -45,7 +45,12 @@ $cm = $modinfo->instances["quiz"][$quizid];
 $context = context_module::instance($cm->id);
 $quizcontextid = $context->id;
 // Load the necessary data.
-$contexts = new question_edit_contexts($thiscontext);
+// Modify for Moodle 4.5
+if (class_exists('\core_question\local\bank\question_edit_contexts')) {
+    $contexts = new \core_question\local\bank\question_edit_contexts($context);
+} else {
+    $contexts = new question_edit_contexts($context);
+}
 $params = [
     'quizcontextid' => $quizcontextid,
     'quizcontextid2' => $quizcontextid,
