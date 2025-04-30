@@ -36,10 +36,12 @@ if ($courseid) {
     $thiscontext = context_course::instance($courseid);
     $urlparams['courseid'] = $courseid;
 } else {
-    print_error('missingcourseorcmid', 'question');
+    throw new \moodle_exception('missingcourseorcmid', 'question');
+
 }
 
 require_sesskey();
+use core_question\local\bank\question_edit_contexts;
 $modinfo = get_fast_modinfo($courseid);
 $cm = $modinfo->instances["quiz"][$quizid];
 $context = context_module::instance($cm->id);
