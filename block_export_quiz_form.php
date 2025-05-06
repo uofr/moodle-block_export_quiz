@@ -47,16 +47,27 @@ class block_export_quiz_form extends moodleform {
         foreach ($format as $shortname => $fileformatname) {
             $formats[$shortname] = $fileformatname;
         }
+        error_log(print_r($formats, true));
 
         // Quiz select.
         $mform->addElement('select', 'quiz', get_string('quiz', 'block_export_quiz'),
                 $quizes);
-
+        
         // Format select.
         $mform->addElement('select', 'format', get_string('format', 'block_export_quiz'),
                 $formats);
 
+       // Set default value for format to Moodle XML format.
+       $mform->setDefault('format', 'xml'); 
+
         // Submit buttons.
         $this->add_action_buttons(false, get_string('export', 'block_export_quiz'));
+      
+        // Add a notification about random questions not being supported as raw HTML.
+        $mform->addElement('html', '<div class="alert alert-warning" role="alert">
+        <strong>Note:</strong> Random questions are not supported in the export.
+        </div>');
+
+
     }
 }

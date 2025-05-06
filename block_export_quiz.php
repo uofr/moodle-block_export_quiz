@@ -70,39 +70,40 @@ class block_export_quiz extends block_base{
          * Adding quiz names and corresponding urls created in $quiztags array
          */
         $quizes = get_fast_modinfo($this->page->course)->instances['quiz'];
+        $quizids = array_keys($quizes);
+        list($in_sql, $params) = $DB->get_in_or_equal($quizids, SQL_PARAMS_NAMED);
+
+        // Fetch all quizzes 
+        $sql = "SELECT DISTINCT slot.quizid
+                FROM {quiz_slots} slot
+                LEFT JOIN {question_references} qr ON qr.component = 'mod_quiz' AND qr.questionarea = 'slot' AND qr.itemid = slot.id
+                LEFT JOIN {question_bank_entries} qbe ON qbe.id = qr.questionbankentryid
+                LEFT JOIN {question_versions} qv ON qv.questionbankentryid = qbe.id
+                WHERE qv.version = (SELECT MAX(v.version)
+                                    FROM {question_versions} v
+                                    JOIN {question_bank_entries} be ON be.id = v.questionbankentryid
+                                    WHERE be.id = qbe.id)
+                AND slot.quizid $in_sql";
+        //Pre load it  and remove it from the loop
+        $quizzes_with_questions = $DB->get_records_sql($sql, $params);
+
+        $validquizids = array_keys($quizzes_with_questions);
+
+        // Filter quizzes and prepare the tags.
         foreach ($quizes as $quiz) {
+            if (!$quiz->uservisible || !in_array($quiz->instance, $validquizids)) {
+                continue;
+            }
 
-                /**
-                 * Check if the Quiz is visible to the user only then display it :
-                 * Teacher can choose to hide the quiz from the students in that case it should not be visible to students
-                 */
-                if(!$quiz->uservisible)
-                    continue;
+            $pageurl = new moodle_url('/blocks/export_quiz/export.php', [
+                'courseid' => $COURSE->id,
+                'id' => $quiz->instance,
+                'sesskey' => sesskey()
+            ]);
 
-                // Check if some questions were added to the quiz (i.e. quiz must not contain only random questions from a category)
-                $sql = "SELECT q.id AS questionid, q.questiontext, q.name AS questionname
-                    FROM mdl_quiz_slots slot
-                    LEFT JOIN mdl_question_references qr ON qr.component = 'mod_quiz'
-                    AND qr.questionarea = 'slot' AND qr.itemid = slot.id
-                    LEFT JOIN mdl_question_bank_entries qbe ON qbe.id = qr.questionbankentryid
-                    LEFT JOIN mdl_question_versions qv ON qv.questionbankentryid = qbe.id
-                    LEFT JOIN mdl_question q ON q.id = qv.questionid
-                    WHERE (qv.version = (SELECT MAX(v.version)
-                                                    FROM mdl_question_versions v
-                                                        JOIN mdl_question_bank_entries be ON be.id = v.questionbankentryid
-                                                    WHERE be.id = qbe.id))
-                    AND slot.quizid = " . $quiz->instance;
-                $questions  = $DB->get_records_sql($sql);
-                if(count($questions)==0)
-                    continue;
-
-                $pageurl = new moodle_url('/blocks/export_quiz/export.php',
-                    array('courseid' => $COURSE->id,
-                        'id' => $quiz->instance,
-                        'sesskey' => sesskey()));
-
-                $quiztags[(string)$pageurl] = $quiz->name;
+            $quiztags[(string)$pageurl] = $quiz->name;
         }
+
        
         // Export form
         $export_quiz_form = new block_export_quiz_form((string)$this->page->url, array('quiz' => $quiztags));

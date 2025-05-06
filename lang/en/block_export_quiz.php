@@ -31,3 +31,6 @@ $string['quiz'] = 'Quiz';
 $string['noaccess'] = 'No access to the given quiz';
 $string['export'] = 'Export';
 $string['format'] = 'Format';
+$string['noquestionsfound'] = 'No questions were found in the selected quiz for export.';
+$string['noquestionsdata'] = 'No valid question data was available for export.';
+
