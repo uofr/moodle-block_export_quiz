@@ -69,9 +69,17 @@ class block_export_quiz extends block_base{
         /**
          * Adding quiz names and corresponding urls created in $quiztags array
          */
-        $quizes = get_fast_modinfo($this->page->course)->instances['quiz'];
+        $modinfo = get_fast_modinfo($this->page->course, 0, true); // refresh modinfo
+        $quizes = $modinfo->instances['quiz'] ?? [];
+        
+       // If there are no quizzes, show message and stop
+        if (empty($quizes)) {
+            $this->content = new stdClass();
+            $this->content->text = get_string('noquizzes', 'block_export_quiz');
+            return $this->content;
+        }
+
         $quizids = array_keys($quizes);
-        list($in_sql, $params) = $DB->get_in_or_equal($quizids, SQL_PARAMS_NAMED);
 
         // Fetch all quizzes 
         $sql = "SELECT DISTINCT slot.quizid

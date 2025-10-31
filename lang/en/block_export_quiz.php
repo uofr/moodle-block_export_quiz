@@ -34,3 +34,4 @@ $string['format'] = 'Format';
 $string['noquestionsfound'] = 'No questions were found in the selected quiz for export.';
 $string['noquestionsdata'] = 'No valid question data was available for export.';
 
+$string['noquizzes'] = 'No quizzes were found in this course.';
