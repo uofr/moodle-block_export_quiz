@@ -69,7 +69,7 @@ class block_export_quiz extends block_base{
         /**
          * Adding quiz names and corresponding urls created in $quiztags array
          */
-        $modinfo = get_fast_modinfo($this->page->course);
+        $modinfo = get_fast_modinfo($this->page->course, 0, true); // refresh modinfo
         $quizes = $modinfo->instances['quiz'] ?? [];
 
         //If there are no quizzes, show message and stop
@@ -83,7 +83,7 @@ class block_export_quiz extends block_base{
         list($in_sql, $params) = $DB->get_in_or_equal($quizids, SQL_PARAMS_NAMED);
 
 
-        // Fetch all quizzes 
+        // Fetch all quizzes -m"
         $sql = "SELECT DISTINCT slot.quizid
                 FROM {quiz_slots} slot
                 LEFT JOIN {question_references} qr ON qr.component = 'mod_quiz' AND qr.questionarea = 'slot' AND qr.itemid = slot.id
