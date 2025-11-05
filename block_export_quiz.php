@@ -83,7 +83,7 @@ class block_export_quiz extends block_base{
         list($in_sql, $params) = $DB->get_in_or_equal($quizids, SQL_PARAMS_NAMED);
 
 
-        // Fetch all quizzes -m"
+        // Fetch all quizzes
         $sql = "SELECT DISTINCT slot.quizid
                 FROM {quiz_slots} slot
                 LEFT JOIN {question_references} qr ON qr.component = 'mod_quiz' AND qr.questionarea = 'slot' AND qr.itemid = slot.id
