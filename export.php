@@ -25,7 +25,6 @@
 require_once(__DIR__.'/../../config.php');
 require_once($CFG->libdir . '/questionlib.php');
 require_once($CFG->dirroot . '/question/format.php');
-
 // Get the parameters from the URL.
 $quizid = required_param('id', PARAM_INT);
 $courseid = optional_param('courseid', 0, PARAM_INT);
@@ -47,7 +46,7 @@ $cm = $modinfo->instances["quiz"][$quizid];
 $context = context_module::instance($cm->id);
 $quizcontextid = $context->id;
 // Load the necessary data.
-$contexts = new question_edit_contexts($thiscontext);
+$contexts = new core_question\local\bank\question_edit_contexts($thiscontext);
 $params = [
     'quizcontextid' => $quizcontextid,
     'quizcontextid2' => $quizcontextid,
@@ -155,7 +154,7 @@ $questions=$DB->get_records_sql("
             
             $filename = $cm->name . $qformat->export_file_extension();
             
-            if (!$qformat->exportpreprocess()) {
+            if (!$qformat->exportpreprocess(true)) {
                 send_file_not_found();
             }
             
