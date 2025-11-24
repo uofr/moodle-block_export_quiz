@@ -69,7 +69,8 @@ class block_export_quiz extends block_base{
         /**
          * Adding quiz names and corresponding urls created in $quiztags array
          */
-        $modinfo = get_fast_modinfo($this->page->course, 0, true); // refresh modinfo
+        $course = get_course($courseid);
+        $modinfo = get_fast_modinfo($course);
         $quizes = $modinfo->instances['quiz'] ?? [];
 
         //If there are no quizzes, show message and stop
