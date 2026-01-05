@@ -22,36 +22,25 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once('block_export_quiz_form.php');
 
-class block_export_quiz extends block_base{
+class block_export_quiz extends block_base {
 
-    /**
-     * Initialise the block.
-     */
     public function init() {
         $this->title = get_string('pluginname', 'block_export_quiz');
     }
 
-    /**
-     * Should be only visible in a particular course and in the quiz modules
-    */
     public function applicable_formats() {
-        return array ('course-view' => true, 'mod-quiz' => true);
+        return ['course-view' => true, 'mod-quiz' => true];
     }
-
 
     public function get_content_type() {
         return BLOCK_TYPE_TEXT;
     }
 
-    /**
-     * Return the content of this block.
-     *
-     * @return stdClass the content
-     */
     public function get_content() {
         global $COURSE, $DB, $PAGE;
 
@@ -59,32 +48,23 @@ class block_export_quiz extends block_base{
             return $this->content;
         }
 
-        $this->content = new stdClass;
+        $this->content = new stdClass();
         $this->content->text = '';
 
         $courseid = $this->page->course->id;
-
-        $quiztags = array();
-       
-        /**
-         * Adding quiz names and corresponding urls created in $quiztags array
-         */
         $course = get_course($courseid);
         $modinfo = get_fast_modinfo($course);
-        $quizes = $modinfo->instances['quiz'] ?? [];
+        $quizzes = $modinfo->instances['quiz'] ?? [];
 
-        //If there are no quizzes, show message and stop
-        if (empty($quizes)) {
-            $this->content = new stdClass();
+        if (empty($quizzes)) {
             $this->content->text = get_string('noquizzes', 'block_export_quiz');
             return $this->content;
         }
 
-        $quizids = array_keys($quizes);
+        $quizids = array_keys($quizzes);
         list($in_sql, $params) = $DB->get_in_or_equal($quizids, SQL_PARAMS_NAMED);
 
-
-        // Fetch all quizzes"
+        // Find quizzes with at least one question
         $sql = "SELECT DISTINCT slot.quizid
                 FROM {quiz_slots} slot
                 LEFT JOIN {question_references} qr ON qr.component = 'mod_quiz' AND qr.questionarea = 'slot' AND qr.itemid = slot.id
@@ -95,42 +75,48 @@ class block_export_quiz extends block_base{
                                     JOIN {question_bank_entries} be ON be.id = v.questionbankentryid
                                     WHERE be.id = qbe.id)
                 AND slot.quizid $in_sql";
-        //Pre load it  and remove it from the loop
-        $quizzes_with_questions = $DB->get_records_sql($sql, $params);
 
+        $quizzes_with_questions = $DB->get_records_sql($sql, $params);
         $validquizids = array_keys($quizzes_with_questions);
 
-        // Filter quizzes and prepare the tags.
-        foreach ($quizes as $quiz) {
-            if (!$quiz->uservisible || !in_array($quiz->instance, $validquizids)) {
+        // Prepare arrays for form
+        $quiztags = [];
+        $quizhasquestions = [];
+
+        foreach ($quizzes as $quiz) {
+            if (!$quiz->uservisible) {
                 continue;
             }
 
-            $pageurl = new moodle_url('/blocks/export_quiz/export.php', [
-                'courseid' => $COURSE->id,
-                'id' => $quiz->instance,
-                'sesskey' => sesskey()
-            ]);
-
-            $quiztags[(string)$pageurl] = $quiz->name;
+            $quiztags[$quiz->instance] = $quiz->name;
+            $quizhasquestions[$quiz->instance] = in_array($quiz->instance, $validquizids);
         }
 
-       
-        // Export form
-        $export_quiz_form = new block_export_quiz_form((string)$this->page->url, array('quiz' => $quiztags));
+        // Create the form
+        $export_quiz_form = new block_export_quiz_form(
+            (string)$this->page->url,
+            [
+                'quiz' => $quiztags,
+                'quizhasquestions' => $quizhasquestions
+            ]
+        );
 
         $export_quiz_form->set_data('');
-
         $this->content->text = $export_quiz_form->render();
 
         if ($export_quiz_form->is_cancelled()) {
-            // Do nothing
+            // do nothing
         } else if ($from_form = $export_quiz_form->get_data()) {
-            $url = new moodle_url($from_form->quiz, array('format' => $from_form->format));
+           $url = new moodle_url('/blocks/export_quiz/export.php', [
+        'courseid' => $COURSE->id,
+        'id'       => $from_form->quiz,
+        'format'   => $from_form->format,
+        'sesskey'  => sesskey()
+        ]);
 
-            // Don't allow force download for behat site, as pop-up can't be handled by selenium.
+
             if (!defined('BEHAT_SITE_RUNNING')) {
-                $PAGE->requires->js_function_call('document.location.replace', array($url->out(false)), false, 1);
+                $PAGE->requires->js_function_call('document.location.replace', [$url->out(false)], false, 1);
             }
         }
 

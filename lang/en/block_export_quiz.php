@@ -35,3 +35,5 @@ $string['noquestionsfound'] = 'No questions were found in the selected quiz for 
 $string['noquestionsdata'] = 'No valid question data was available for export.';
 
 $string['noquizzes'] = 'No quizzes were found in this course.';
+$string['selectquiz'] = 'Select a quiz';
+$string['quizhasnoquestions'] = 'The selected quiz has no questions and cannot be exported.';

@@ -34,40 +34,88 @@ require_once($CFG->libdir . '/questionlib.php');
  *     @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+
+defined('MOODLE_INTERNAL') || die();
+
+require_once($CFG->libdir . '/formslib.php');
+
 class block_export_quiz_form extends moodleform {
 
-    function definition(){
+    function definition() {
+        global $PAGE;
+
         $mform = $this->_form;
+        $quizzes = $this->_customdata['quiz'] ?? [];
+        $quizhasquestions = $this->_customdata['quizhasquestions'] ?? [];
 
-        $quizes = $this->_customdata['quiz'];
-        $format = get_import_export_formats('export');
+// Build quiz options
+$quizoptions = ['' => get_string('selectquiz', 'block_export_quiz')];
+$emptyquizids = [];
 
-        $formats = array();
-
-        foreach ($format as $shortname => $fileformatname) {
-            $formats[$shortname] = $fileformatname;
+    foreach ($quizzes as $quizid => $name) {
+            if (empty($quizhasquestions[$quizid])) {
+                $quizoptions[$quizid] = $name . ' (No questions)';
+                $emptyquizids[] = (string)$quizid;
+            } else {
+                $quizoptions[$quizid] = $name;
+            }
         }
-        error_log(print_r($formats, true));
 
-        // Quiz select.
-        $mform->addElement('select', 'quiz', get_string('quiz', 'block_export_quiz'),
-                $quizes);
-        
-        // Format select.
-        $mform->addElement('select', 'format', get_string('format', 'block_export_quiz'),
-                $formats);
 
-       // Set default value for format to Moodle XML format.
-       $mform->setDefault('format', 'xml'); 
+        // Quiz select
+        $mform->addElement('select', 'quiz', get_string('quiz', 'block_export_quiz'), $quizoptions);
+        $mform->addElement(
+            'html',
+            '<div id="export-quiz-warning"
+                class="alert alert-warning d-none"
+                role="alert">
+                <strong>Note:</strong> This quiz has no questions and cannot be exported.
+            </div>'
+        );
+        // Format select
+        $formats = get_import_export_formats('export');
+        $formatoptions = [];
+        foreach ($formats as $shortname => $name) {
+            $formatoptions[$shortname] = $name;
+        }
 
-        // Submit buttons.
+        $mform->addElement('select', 'format', get_string('format', 'block_export_quiz'), $formatoptions);
+        $mform->setDefault('format', 'xml');
+
+        // Submit
         $this->add_action_buttons(false, get_string('export', 'block_export_quiz'));
-      
-        // Add a notification about random questions not being supported as raw HTML.
-        $mform->addElement('html', '<div class="alert alert-warning" role="alert">
-        <strong>Note:</strong> Random questions are not supported in the export.
-        </div>');
 
+        // Static note
+        $mform->addElement('html', '
+            <div class="alert alert-warning" role="alert">
+                <strong>Note:</strong> Random questions are not supported in the export.
+            </div>
+        ');
 
+        $PAGE->requires->js_call_amd(
+            'block_export_quiz/form_warning',
+            'init',
+            [
+                 ['emptyquizids' => $emptyquizids]
+            ]
+        );
+    }
+
+    function validation($data, $files) {
+        $errors = [];
+        $quizhasquestions = $this->_customdata['quizhasquestions'] ?? [];
+
+        if (empty($data['quiz'])) {
+            $errors['quiz'] = get_string('required');
+            return $errors;
+        }
+
+        $quizid = (int)($data['quiz'] ?? 0);
+
+        if ($quizid && empty($quizhasquestions[$quizid])) {
+            $errors['quiz'] = get_string('quizhasnoquestions', 'block_export_quiz');
+        }
+
+        return $errors;
     }
 }
