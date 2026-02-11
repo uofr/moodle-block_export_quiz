@@ -47,6 +47,14 @@ class block_export_quiz extends block_base {
         if ($this->content !== null) {
             return $this->content;
         }
+        // 1. Get the correct context
+        $context = context_course::instance($COURSE->id);
+
+        // 2. Check capability
+        // We also allow Site Admins to always see it.
+        if (!has_capability('block/export_quiz:addinstance', $context) && !is_siteadmin()) {
+            return ''; 
+        }
 
         $this->content = new stdClass();
         $this->content->text = '';
